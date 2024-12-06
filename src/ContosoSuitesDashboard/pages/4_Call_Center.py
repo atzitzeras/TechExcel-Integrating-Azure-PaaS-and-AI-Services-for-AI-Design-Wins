@@ -25,6 +25,7 @@ def create_transcription_request(audio_file, speech_recognition_language="en-US"
     speech_key = st.secrets["speech"]["key"]
     speech_region = st.secrets["speech"]["region"]
 
+
     # Create an instance of a speech config with specified subscription key and service region.
     speech_config = speechsdk.SpeechConfig(subscription=speech_key, region=speech_region)
     speech_config.speech_recognition_language=speech_recognition_language
@@ -132,6 +133,10 @@ def generate_extractive_summary(call_contents):
     """Generate an extractive summary of a call transcript. Key assumptions:
     - Azure AI Services Language service endpoint and key stored in Streamlit secrets."""
 
+    language_endpoint = st.secrets["language"]["endpoint"]
+    language_key = st.secrets["language"]["key"]
+    joined_call_contents = ' '.join(call_contents)
+
     # Create a TextAnalyticsClient, connecting it to your Language Service endpoint.
     client = TextAnalyticsClient(language_endpoint, AzureKeyCredential(language_key))
     # Call the begin_analyze_actions method on your client, passing in the joined
@@ -160,6 +165,10 @@ def generate_extractive_summary(call_contents):
 def generate_abstractive_summary(call_contents):
     """Generate an abstractive summary of a call transcript. Key assumptions:
     - Azure AI Services Language service endpoint and key stored in Streamlit secrets."""
+    language_endpoint = st.secrets["language"]["endpoint"]
+    language_key = st.secrets["language"]["key"]
+    joined_call_contents = ' '.join(call_contents)
+
     # Create a TextAnalyticsClient, connecting it to your Language Service endpoint.
     client = TextAnalyticsClient(language_endpoint, AzureKeyCredential(language_key))
 
@@ -188,6 +197,7 @@ def generate_abstractive_summary(call_contents):
 @st.cache_data
 def generate_query_based_summary(call_contents):
     """Generate a query-based summary of a call transcript."""
+    joined_call_contents = ' '.join(call_contents)
 
     # Write a system prompt that instructs the large language model to:
     #    - Generate a short (5 word) summary from the call transcript.
@@ -211,6 +221,9 @@ def generate_query_based_summary(call_contents):
 @st.cache_data
 def create_sentiment_analysis_and_opinion_mining_request(call_contents):
     # Create a Text Analytics Client
+    language_endpoint = st.secrets["language"]["endpoint"]
+    language_key = st.secrets["language"]["key"]
+    joined_call_contents = ' '.join(call_contents)
     client = TextAnalyticsClient(language_endpoint, AzureKeyCredential(language_key))
 
     # Analyze sentiment of call transcript, enabling opinion mining.
@@ -318,7 +331,21 @@ def make_azure_openai_embedding_request(text):
     """Create and return a new embedding request. Key assumptions:
     - Azure OpenAI endpoint, key, and deployment name stored in Streamlit secrets."""
 
-    return "This is a placeholder result. Fill in with real embedding."
+    aoai_endpoint = st.secrets["aoai"]["endpoint"]
+    aoai_key = st.secrets["aoai"]["key"]
+    aoai_embedding_deployment_name = st.secrets["aoai"]["embedding_deployment_name"]
+
+    client = openai.AzureOpenAI(
+        api_key=aoai_key,
+        api_version="2024-06-01",
+        azure_endpoint = aoai_endpoint
+    )
+    # Create and return a new embedding request
+    return client.embeddings.create(
+        model=aoai_embedding_deployment_name,
+        input=text
+    )
+
 
 def normalize_text(s):
     """Normalize text for tokenization."""
@@ -339,10 +366,13 @@ def generate_embeddings_for_call_contents(call_contents):
     - Azure OpenAI endpoint, key, and deployment name stored in Streamlit secrets."""
 
     # Normalize the text for tokenization
-    # Call make_azure_openai_embedding_request() with the normalized content
-    # Return the embeddings
+    normalized_content = normalize_text(call_contents)
 
-    return [0, 0, 0]
+    # Call make_azure_openai_embedding_request() with the normalized content
+    response = make_azure_openai_embedding_request(normalized_content)
+
+    return response.data[0].embedding
+
 
 def save_transcript_to_cosmos_db(transcript_item):
     """Save embeddings to Cosmos DB vector store. Key assumptions:
@@ -356,8 +386,14 @@ def save_transcript_to_cosmos_db(transcript_item):
     cosmos_container_name = "CallTranscripts"
 
     # Create a CosmosClient
+    client = CosmosClient(url=cosmos_endpoint, credential=cosmos_key)
     # Load the Cosmos database and container
+    database = client.get_database_client(cosmos_database_name)
+    container = database.get_container_client(cosmos_container_name)
+
     # Insert the call transcript
+    container.create_item(body=transcript_item)
+
 
 ####################### HELPER FUNCTIONS FOR MAIN() #######################
 def perform_audio_transcription(uploaded_file):
