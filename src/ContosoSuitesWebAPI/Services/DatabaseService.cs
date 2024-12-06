@@ -113,7 +113,6 @@ public class DatabaseService : IDatabaseService
 
     [KernelFunction]
     [Description("Get bookings missing hotel rooms.")]
-
     public async Task<IEnumerable<Booking>> GetBookingsMissingHotelRooms()
     {
         var sql = """
