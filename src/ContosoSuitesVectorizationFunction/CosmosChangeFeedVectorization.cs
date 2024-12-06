@@ -19,6 +19,9 @@ namespace ContosoSuites.Functions
         const string DatabaseName = "ContosoSuites";
         const string ContainerName = "MaintenanceRequests";
 
+
+
+
         /// <summary>
         /// Initializes a new instance of the <see cref="CosmosChangeFeedVectorization"/> class.
         /// </summary>
