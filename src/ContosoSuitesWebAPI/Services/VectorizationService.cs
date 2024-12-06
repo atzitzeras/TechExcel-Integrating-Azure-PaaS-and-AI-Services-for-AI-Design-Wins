@@ -1,8 +1,8 @@
 ﻿using Azure.AI.OpenAI;
 using ContosoSuitesWebAPI.Entities;
 using Microsoft.Azure.Cosmos;
-
-namespace ContosoSuitesWebAPI.Services
+using System.Globalization;
+ namespace ContosoSuitesWebAPI.Services
 {
     /// <summary>
     /// The vectorization service for generating embeddings and executing vector searches.
@@ -48,10 +48,11 @@ namespace ContosoSuitesWebAPI.Services
            var container = db.GetContainer(configuration.GetValue<string>("CosmosDB:MaintenanceRequestsContainerName") ?? "MaintenanceRequests");
 
            var vectorString = string.Join(", ", queryVector.Select(v => v.ToString(CultureInfo.InvariantCulture)).ToArray());
+ 
+            var query = $"SELECT c.hotel_id AS HotelId, c.hotel AS Hotel, c.details AS Details, c.source AS Source, VectorDistance(c.request_vector, [{vectorString}]) AS SimilarityScore FROM c";
+            query += $" WHERE VectorDistance(c.request_vector, [{vectorString}]) > {minimum_similarity_score.ToString(CultureInfo.InvariantCulture)}";
+            query += $" ORDER BY VectorDistance(c.request_vector, [{vectorString}])";
 
-           var query = $"SELECT c.hotel_id AS HotelId, c.hotel AS Hotel, c.details AS Details, c.source AS Source, VectorDistance(c.request_vector, [{vectorString}]) AS SimilarityScore FROM c";
-           query += $" WHERE VectorDistance(c.request_vector, [{vectorString}]) > {minimum_similarity_score.ToString(CultureInfo.InvariantCulture)}";
-           query += $" ORDER BY VectorDistance(c.request_vector, [{vectorString}])";
 
            var results = new List<VectorSearchResult>();
 
